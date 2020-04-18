@@ -13,6 +13,8 @@ TOKEN_EOS = '<EOS>'
 TOKEN_UNK = '<UNK>'
 
 column_split_symbol = ' +++$+++ '
+
+# Hyper parameters
 frequent_threshold = 0.9  # to 90% of the world will be selected to generate the word2id
 
 # Import the data-set
@@ -61,8 +63,8 @@ clean_answers = [clean_text(answer) for answer in answers]
 
 # flat sentences to words
 print('Generating bag of words')
-bag_of_words = [word for question in clean_questions for word in nltk.tokenize.word_tokenize(question)] + \
-               [word for answers in clean_answers for word in nltk.tokenize.word_tokenize(answers)]
+bag_of_words = [word for question in clean_questions for word in question.split()] + \
+               [word for answers in clean_answers for word in answers.split()]
 
 # Create word distribution, so that filtering less frequent words is possible
 print('Calculating word frequency')
@@ -81,3 +83,11 @@ word2id.update({token: i for i, token in enumerate(tokens, start=1)})
 # Create id2word mapping - Inverse word mapping
 print('Creating id2word inverse mapping')
 id2word = {idx: word for word, idx in word2id.items()}
+
+# Add EOS token to all the answers
+clean_answers[:] = map(lambda answer: answer + ' ' + TOKEN_EOS, clean_answers)
+
+# Convert words in questions/answers to idx based on word2id
+print('Converting sentence in to [ids] based on word2id mapping')
+questions2id = [[word2id.get(word, word2id[TOKEN_UNK]) for word in question.split()] for question in clean_questions]
+answers2id = [[word2id.get(word, word2id[TOKEN_UNK]) for word in answer.split()] for answer in clean_answers]
