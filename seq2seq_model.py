@@ -15,8 +15,8 @@ def model_input():
 
 
 # Pre process the target
-def get_batch_targets(targets, batch_size):
-    sos_vec = tf.fill([batch_size, 1], 2)  # <SOS>
+def get_batch_targets(targets, batch_size, sos_id):
+    sos_vec = tf.fill([batch_size, 1], sos_id)
     _targets = tf.strided_slice(targets, [0, 0], [batch_size, -1], [1, 1])
     batch_targets = tf.concat([sos_vec, _targets], axis=1)
     return batch_targets
@@ -121,3 +121,25 @@ def decoder_rnn(decoder_embedded_inputs, decoder_embedding_matrix, encoder_state
                                            batch_size)
 
     return training_prediction, test_predictions
+
+
+# Build the model
+def seq2seq_model(inputs, targets, keep_prob, batch_size, sequence_length, answers_num_words, questions_num_words,
+                  encoder_embedding_size, decoder_embedding_size, rnn_size, num_layers, sos_id, eos_id):
+    # build encoder rnn
+    encoder_embedded_input = tf.contrib.layers.embed_sequence(inputs,
+                                                              answers_num_words + 1,
+                                                              encoder_embedding_size,
+                                                              initializer=tf.random_uniform_initializer(0, 1))
+    encoder_state = encoder_rnn(encoder_embedded_input, rnn_size, num_layers, keep_prob, sequence_length)
+
+    # build decoder rnn
+    batch_targets = get_batch_targets(targets, batch_size, sos_id)
+    decoder_embeddings_matrix = tf.variable(tf.random_uniform([questions_num_words + 1, decoder_embedding_size], 0, 1))
+    decoder_embedded_input = tf.nn.embedding_lookup(decoder_embeddings_matrix, batch_targets)
+
+    # predictions
+    training_predictions, test_predictions = decoder_rnn(decoder_embedded_input, decoder_embeddings_matrix,
+                                                         encoder_state, questions_num_words, sequence_length, rnn_size,
+                                                         num_layers, sos_id, eos_id, keep_prob, batch_size)
+    return training_predictions, test_predictions
