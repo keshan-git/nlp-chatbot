@@ -65,7 +65,7 @@ def decode_training_set(encoder_state, decoder_cell, decoder_embedded_input, seq
 
 # Decoding the test/validation set
 def decode_test_set(encoder_state, decoder_cell, decoder_embeddings_matrix, sos_id, eos_id, maximum_length, num_words,
-                    sequence_length, decoding_scope, output_function, keep_prob, batch_size):
+                    decoding_scope, output_function, keep_prob, batch_size):
     attention_states = tf.zeros([batch_size, 1, decoder_cell.output_size])
 
     attention_keys, attention_values, attention_score_function, attention_construct_function \
@@ -88,3 +88,36 @@ def decode_test_set(encoder_state, decoder_cell, decoder_embeddings_matrix, sos_
 
     test_predictions, _, _ = seq2seq.dynamic_rnn_decoder(decoder_cell, test_decoder_function, scope=decoding_scope)
     return test_predictions
+
+
+# Creating the decoder RNN
+def decoder_rnn(decoder_embedded_inputs, decoder_embedding_matrix, encoder_state, num_words, sequence_length, rnn_size,
+                num_of_layers, sos_id, eos_id, keep_prob, batch_size):
+    # perform on decoding scope
+    with tf.variable_scope("decoding") as decoding_scope:
+        _lstm = BasicLSTMCell(rnn_size)
+        lstm = DropoutWrapper(_lstm, input_keep_prob=keep_prob)
+
+        cell = MultiRNNCell([lstm] * num_of_layers)
+
+        # Initialize weights and biases
+        weights = tf.truncated_normal_initializer(stddev=0.1)
+        biases = tf.zeros_initializer()
+
+        # define output function
+        output_function = lambda x: tf.contrib.layers.fully_connected(x,
+                                                                      num_words,
+                                                                      None,
+                                                                      scope=decoding_scope,
+                                                                      weights_initializers=weights,
+                                                                      biases_initializers=biases)
+
+        training_prediction = decode_training_set(encoder_state, cell, decoder_embedded_inputs, sequence_length,
+                                                  decoding_scope, output_function, keep_prob, batch_size)
+
+        decoding_scope.reuse_variables()
+        test_predictions = decode_test_set(encoder_state, cell, decoder_embedding_matrix, sos_id, eos_id,
+                                           sequence_length - 1, num_words, decoding_scope, output_function, keep_prob,
+                                           batch_size)
+
+    return training_prediction, test_predictions
