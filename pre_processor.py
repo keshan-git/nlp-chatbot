@@ -3,19 +3,10 @@ import re
 import ast
 from string import punctuation
 
-# Define special tokens
-TOKEN_PAD = '<PAD>'
-TOKEN_SOS = '<SOS>'
-TOKEN_EOS = '<EOS>'
-TOKEN_UNK = '<UNK>'
-
-column_split_symbol = ' +++$+++ '
-
-# Hyper parameters
-frequent_threshold = 0.9  # to 90% of the world will be selected to generate the word2id
-max_question_size = 25  # Questions containing more than 25 words will be discarded
-
 # Import the data-set
+from parameters import column_split_symbol, frequent_threshold, TOKEN_PAD, TOKEN_SOS, TOKEN_EOS, TOKEN_UNK, \
+    max_question_size
+
 print('Start importing data sets')
 lines = open('dataset/movie_lines.txt', encoding='utf8', errors='ignore').read().split(sep='\n')
 conversations = open('dataset/movie_conversations.txt', encoding='utf8', errors='ignore').read().split(sep='\n')
