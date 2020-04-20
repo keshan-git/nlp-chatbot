@@ -15,11 +15,10 @@ def model_input():
 
 
 # Pre process the target
-def get_batch_targets(targets, batch_size, sos_id):
+def batch_targets(targets, batch_size, sos_id):
     sos_vec = tf.fill([batch_size, 1], sos_id)
     _targets = tf.strided_slice(targets, [0, 0], [batch_size, -1], [1, 1])
-    batch_targets = tf.concat([sos_vec, _targets], axis=1)
-    return batch_targets
+    return tf.concat([sos_vec, _targets], axis=1)
 
 
 # Create the encoder RNN layer
