@@ -1,18 +1,22 @@
 import time
 
 import tensorflow as tf
-import numpy as np
-
 from tensorflow.contrib import seq2seq
+import numpy as np
+import logging
 
 from parameters import max_question_size, encoding_embedding_size, decoding_embedding_size, \
-    rnn_size, num_of_layers, learning_rate, epochs, keep_probability, learning_rate_decay, min_learning_rate, \
-    batch_index_check_training_loss, early_stopping_stop, sos_id, eos_id, pad_id, batch_size
+    rnn_size, num_of_layers, epochs, keep_probability, learning_rate_decay, min_learning_rate, \
+    batch_index_check_training_loss, early_stopping_stop, sos_id, eos_id, pad_id, batch_size, train_validation_split, \
+    param_learning_rate
 from seq2seq_model import model_input, seq2seq_model
+
+logger = logging.getLogger(__name__)
 
 
 # prepare the session with placeholders
 def prepare_session(vocabulary_size):
+    logger.info('Preparing Tensorflow session')
     # Define a session
     tf.reset_default_graph()
     session = tf.InteractiveSession()
@@ -26,6 +30,7 @@ def prepare_session(vocabulary_size):
     # getting the shape of the input tensor
     input_shape = tf.shape(inputs)
 
+    logger.info('Initializing Seq2Seq model')
     # getting the training and test predictions
     training_predictions, test_predictions = seq2seq_model(tf.reverse(inputs, [-1]), targets, keep_prob, batch_size,
                                                            sequence_length, vocabulary_size, vocabulary_size,
@@ -37,7 +42,7 @@ def prepare_session(vocabulary_size):
         loss_error = seq2seq.sequence_loss(training_predictions, targets, tf.ones([input_shape[0], sequence_length]))
 
         # Optimizer
-        _optimizer = tf.train.AdamOptimizer(learning_rate)
+        _optimizer = tf.train.AdamOptimizer(param_learning_rate)
 
         # Gradient clipping
         gradients = _optimizer.compute_gradients(loss_error)
@@ -46,7 +51,8 @@ def prepare_session(vocabulary_size):
 
         optimizer = _optimizer.apply_gradients(clipped_gradients)
 
-    return session, optimizer, loss_error
+    logger.info('Tensorflow session is ready')
+    return session, optimizer, loss_error, inputs, targets, lr, keep_prob, sequence_length
 
 
 # Padding the sequence with the <PAD> token
@@ -62,15 +68,16 @@ def split_batches(questions, answers, size):
         questions_in_batch = questions[start_index: start_index + size]
         answers_in_batch = answers[start_index: start_index + size]
 
-        padded_questions_in_batch = np.array(apply_padding(questions_in_batch, pad_id))
-        padded_answers_batch = np.array(apply_padding(answers_in_batch, pad_id))
+        padded_questions_in_batch = np.array(apply_padding(questions_in_batch))
+        padded_answers_batch = np.array(apply_padding(answers_in_batch))
 
         yield padded_questions_in_batch, padded_answers_batch
 
 
 # Splitting the questions and answers into training and validation sets
 def split_training_validation(questions, answers):
-    training_validation_split = int(len(questions) * 0.15)
+    logger.info('Splitting training and validation sets, split ration={0}'.format(train_validation_split))
+    training_validation_split = int(len(questions) * train_validation_split)
     training_question = questions[training_validation_split:]
     training_answers = answers[training_validation_split:]
 
@@ -82,19 +89,20 @@ def split_training_validation(questions, answers):
 
 # Start training
 def start_training(session, optimizer, loss_error, training_question, training_answers,
-                   validation_question, validation_answers):
+                   validation_question, validation_answers, inputs, targets, lr, keep_prob, sequence_length):
     # Training
     batch_index_check_validation_loss = (len(training_question) // batch_size // 2) - 1
     total_training_loss_error = 0
     list_validation_loss_error = []
     early_stopping_check = 0
-
+    learning_rate = param_learning_rate
     checkpoint = "chatbot_weights.data"
     session.run(tf.global_variables_initializer())
+    logger.info('Start training the model')
 
     for epoch in range(1, epochs + 1):
         for batch_index, (questions, answers) \
-                in enumerate(split_batches(training_question, training_answers, batch_size, pad_id)):
+                in enumerate(split_batches(training_question, training_answers, batch_size)):
             starting_time = time.time()
             _, batch_training_loss_error = session.run([optimizer, loss_error], {inputs: questions,
                                                                                  targets: answers,
@@ -105,8 +113,8 @@ def start_training(session, optimizer, loss_error, training_question, training_a
             batch_time = time.time() - starting_time
 
             if batch_index % batch_index_check_training_loss == 0:
-                print('Epoch: {:>3}/{}, Batch: {:>4}/{}, Training Loss Error: {:>6.3f},'
-                      ' Training Time on 100 Batches: {:d} seconds'.format(
+                logger.info(
+                    'Epoch: {:>3}/{}, Batch: {:>4}/{}, Training Loss Error: {:>6.3f}, Training Time: {:d} s'.format(
                         epoch, epochs, batch_index, len(training_question) // batch_size,
                         total_training_loss_error / batch_index_check_training_loss,
                         int(batch_time * batch_index_check_training_loss)))
@@ -127,7 +135,7 @@ def start_training(session, optimizer, loss_error, training_question, training_a
 
                 batch_time = time.time() - starting_time
                 avg_validation_loss_error = total_validation_loss_error / (len(validation_question) / batch_size)
-                print('Validation Loss Error: {:>6.3f}, Batch Validation Time: {:d} seconds'.format(
+                logger.info('Validation Loss Error: {:>6.3f}, Batch Validation Time: {:d} seconds'.format(
                     avg_validation_loss_error, int(batch_time)))
 
                 learning_rate *= learning_rate_decay
@@ -137,20 +145,20 @@ def start_training(session, optimizer, loss_error, training_question, training_a
                 last_min_validation_loss_error = min(list_validation_loss_error)
                 list_validation_loss_error.append(avg_validation_loss_error)
                 if avg_validation_loss_error <= last_min_validation_loss_error:
-                    print('Improvement over last validation step from {:>6.3f} to {:>6.3f}'
-                          .format(last_min_validation_loss_error, avg_validation_loss_error))
+                    logger.info('Improvement over last validation step from {:>6.3f} to {:>6.3f}'
+                                .format(last_min_validation_loss_error, avg_validation_loss_error))
                     early_stopping_check = 0
 
                     saver = tf.train.Saver()
                     saver.save(session, checkpoint)
                 else:
-                    print('No new improvement over last validation step from {:>6.3f} to {:>6.3f}'
-                          .format(last_min_validation_loss_error, avg_validation_loss_error))
+                    logger.info('No new improvement over last validation step from {:>6.3f} to {:>6.3f}'
+                                .format(last_min_validation_loss_error, avg_validation_loss_error))
                     early_stopping_check += 1
 
                     if early_stopping_check == early_stopping_stop:
                         break
 
         if early_stopping_check == early_stopping_stop:
-            print("Reached the stop check during the training")
+            logger.info("Reached the stop check during the training")
             break

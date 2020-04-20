@@ -27,11 +27,11 @@ def encoder_rnn(rnn_input, rnn_size, num_of_layers, keep_prob, sequence_length):
     lstm = DropoutWrapper(_lstm, input_keep_prob=keep_prob)
 
     cell = MultiRNNCell([lstm] * num_of_layers)
-    output, state = tf.contrib.nn.bidirectional_dynamic_rnn(cell_fv=cell,
-                                                            cell_bv=cell,
-                                                            sequence_length=sequence_length,
-                                                            inputs=rnn_input,
-                                                            dtype=tf.float32)
+    output, state = tf.nn.bidirectional_dynamic_rnn(cell_fw=cell,
+                                                    cell_bw=cell,
+                                                    sequence_length=sequence_length,
+                                                    inputs=rnn_input,
+                                                    dtype=tf.float32)
     return state
 
 
@@ -108,8 +108,8 @@ def decoder_rnn(decoder_embedded_inputs, decoder_embedding_matrix, encoder_state
                                                                       num_words,
                                                                       None,
                                                                       scope=decoding_scope,
-                                                                      weights_initializers=weights,
-                                                                      biases_initializers=biases)
+                                                                      weights_initializer=weights,
+                                                                      biases_initializer=biases)
 
         training_prediction = decode_training_set(encoder_state, cell, decoder_embedded_inputs, sequence_length,
                                                   decoding_scope, output_function, keep_prob, batch_size)
@@ -133,9 +133,9 @@ def seq2seq_model(inputs, targets, keep_prob, batch_size, sequence_length, answe
     encoder_state = encoder_rnn(encoder_embedded_input, rnn_size, num_layers, keep_prob, sequence_length)
 
     # build decoder rnn
-    batch_targets = get_batch_targets(targets, batch_size, sos_id)
-    decoder_embeddings_matrix = tf.variable(tf.random_uniform([questions_num_words + 1, decoder_embedding_size], 0, 1))
-    decoder_embedded_input = tf.nn.embedding_lookup(decoder_embeddings_matrix, batch_targets)
+    _batch_targets = batch_targets(targets, batch_size, sos_id)
+    decoder_embeddings_matrix = tf.Variable(tf.random_uniform([questions_num_words + 1, decoder_embedding_size], 0, 1))
+    decoder_embedded_input = tf.nn.embedding_lookup(decoder_embeddings_matrix, _batch_targets)
 
     # predictions
     training_predictions, test_predictions = decoder_rnn(decoder_embedded_input, decoder_embeddings_matrix,
