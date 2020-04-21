@@ -26,5 +26,5 @@ learning_rate_decay = 0.9
 min_learning_rate = 0.0001
 keep_probability = 0.5  # 1 - dropout rate
 
-batch_index_check_training_loss = 10
+batch_index_check_training_loss = 1
 early_stopping_stop = 1000

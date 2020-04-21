@@ -1,3 +1,4 @@
+import os
 import time
 
 import tensorflow as tf
@@ -91,7 +92,7 @@ def split_training_validation(questions, answers):
 def start_training(session, optimizer, loss_error, training_question, training_answers,
                    validation_question, validation_answers, inputs, targets, lr, keep_prob, sequence_length):
     # Training
-    batch_index_check_validation_loss = (len(training_question) // batch_size // 2) - 1
+    batch_index_check_validation_loss = (len(training_question) // batch_size // 160) - 1
     total_training_loss_error = 0
     list_validation_loss_error = []
     early_stopping_check = 0
@@ -125,7 +126,7 @@ def start_training(session, optimizer, loss_error, training_question, training_a
                 starting_time = time.time()
 
                 for batch_index_validation, (validation_questions, validation_answers) \
-                        in enumerate(split_batches(validation_question, validation_answers, batch_size, pad_id)):
+                        in enumerate(split_batches(validation_question, validation_answers, batch_size)):
                     batch_validation_loss_error = session.run(loss_error, {inputs: questions,
                                                                            targets: answers,
                                                                            lr: learning_rate,
@@ -142,15 +143,15 @@ def start_training(session, optimizer, loss_error, training_question, training_a
                 if learning_rate < min_learning_rate:
                     learning_rate = min_learning_rate
 
-                last_min_validation_loss_error = min(list_validation_loss_error)
                 list_validation_loss_error.append(avg_validation_loss_error)
+                last_min_validation_loss_error = min(list_validation_loss_error)
                 if avg_validation_loss_error <= last_min_validation_loss_error:
                     logger.info('Improvement over last validation step from {:>6.3f} to {:>6.3f}'
                                 .format(last_min_validation_loss_error, avg_validation_loss_error))
                     early_stopping_check = 0
 
                     saver = tf.train.Saver()
-                    saver.save(session, checkpoint)
+                    saver.save(session, os.path.join(os.getcwd(), checkpoint))
                 else:
                     logger.info('No new improvement over last validation step from {:>6.3f} to {:>6.3f}'
                                 .format(last_min_validation_loss_error, avg_validation_loss_error))
