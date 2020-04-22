@@ -6,7 +6,7 @@ import logging
 
 # Import the data-set
 from parameters import column_split_symbol, frequent_threshold, TOKEN_PAD, TOKEN_SOS, TOKEN_EOS, TOKEN_UNK, \
-    max_question_size
+    max_question_size, unk_id
 
 logger = logging.getLogger(__name__)
 
@@ -111,3 +111,9 @@ def _clean_text(text, contractions_mapping):
     # remove all punctuations
     text = re.sub(r"[{}]".format(punctuation), "", text)
     return text
+
+
+# Converting new questions from string to lists of encoding int
+def encode_question(question, word2id):
+    _question = _clean_text(question)
+    return [word2id.get(word, unk_id) for word in question.split()]

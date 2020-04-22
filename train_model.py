@@ -9,7 +9,7 @@ import logging
 from parameters import max_question_size, encoding_embedding_size, decoding_embedding_size, \
     rnn_size, num_of_layers, epochs, keep_probability, learning_rate_decay, min_learning_rate, \
     batch_index_check_training_loss, early_stopping_stop, sos_id, eos_id, pad_id, batch_size, train_validation_split, \
-    param_learning_rate
+    param_learning_rate, weights_file_name
 from seq2seq_model import model_input, seq2seq_model
 
 logger = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ def prepare_session(vocabulary_size):
         optimizer = _optimizer.apply_gradients(clipped_gradients)
 
     logger.info('Tensorflow session is ready')
-    return session, optimizer, loss_error, inputs, targets, lr, keep_prob, sequence_length
+    return session, optimizer, loss_error, inputs, targets, lr, keep_prob, sequence_length, test_predictions
 
 
 # Padding the sequence with the <PAD> token
@@ -97,7 +97,6 @@ def start_training(session, optimizer, loss_error, training_questions, training_
     list_validation_loss_error = []
     early_stopping_check = 0
     learning_rate = param_learning_rate
-    checkpoint = "chatbot_weights.data"
     session.run(tf.global_variables_initializer())
     logger.info('Start training the model')
 
@@ -151,7 +150,7 @@ def start_training(session, optimizer, loss_error, training_questions, training_
                     early_stopping_check = 0
 
                     saver = tf.train.Saver()
-                    saver.save(session, os.path.join(os.getcwd(), checkpoint))
+                    saver.save(session, os.path.join(os.getcwd(), "weights" + os.sep + weights_file_name))
                 else:
                     logger.info('No new improvement over last validation step from {:>6.3f} to {:>6.3f}'
                                 .format(last_min_validation_loss_error, avg_validation_loss_error))

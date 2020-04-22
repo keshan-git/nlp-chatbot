@@ -16,15 +16,17 @@ max_question_size = 25  # Questions containing more than 25 words will be discar
 
 train_validation_split = 0.15
 epochs = 100
-batch_size = 64
-rnn_size = 512
+batch_size = 32
+rnn_size = 1024
 num_of_layers = 3  # layers in encoder RNN, layers in decoder RNN
-encoding_embedding_size = 512
-decoding_embedding_size = 512
-param_learning_rate = 0.01
+encoding_embedding_size = 1024
+decoding_embedding_size = 1024
+param_learning_rate = 0.001
 learning_rate_decay = 0.9
 min_learning_rate = 0.0001
 keep_probability = 0.5  # 1 - dropout rate
 
-batch_index_check_training_loss = 100
-early_stopping_stop = 1000
+batch_index_check_training_loss = 1
+early_stopping_stop = 100
+
+weights_file_name = "chatbot.weights"
