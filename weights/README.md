@@ -1,0 +1,1 @@
+TF checkpoint files will be created under this folder
